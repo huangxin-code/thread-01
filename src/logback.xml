@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+scan: 当此属性设置为true时，配置文件如果发生改变，将会被重新加载，默认值为true。（这个功能可以在不重启运行环境下，调整打印日志的细节，方便定位问题）
+scanPeriod: 设置监测配置文件是否有修改的时间间隔，如果没有给出时间单位，默认单位是毫秒。当scan为true时，此属性生效。默认的时间间隔为1分钟。
+debug: 当此属性设置为true时，将打印出logback内部日志信息，实时查看logback运行状态。默认值为false。
+
+Logger 可以被分配级别。级别包括：TRACE、DEBUG、INFO、WARN 和 ERROR
+级别排序为： TRACE < DEBUG < INFO < WARN < ERROR
+-->
+<configuration scan="true" scanPeriod="60 seconds" debug="true">
+
+    <!-- property 定义变量，可在下面引用 -->
+    <property name="log_dir" value="/data/logs/wxcalendar/reminder" />
+    <!-- 日志最大的历史 30天 -->
+    <property name="maxHistory" value="30"/>
+
+    <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%file:%line] - %msg %xEx%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 有一种appender策略叫FileAppender，不常用，里面有个关键子标签file，用来标记输出文件的名称 -->
+    <!-- 滚动记录文件，先将日志记录到指定文件，当符合某个条件时，将日志记录到其他文件 RollingFileAppender-->
+    <appender name="errorAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 过滤器，执行一个过滤器会有返回个枚举值，即DENY，NEUTRAL，ACCEPT其中之一。返回DENY，日志将立即被抛弃不再经过其他过滤器；返回NEUTRAL，有序列表里的下个过滤器过接着处理日志；返回ACCEPT，日志会被立即处理，不再经过剩余过滤器。
+			过滤器被添加到<appender> 中，为<appender> 添加一个或多个过滤器后，可以用任意条件对日志进行过滤。<appender> 有多个过滤器时，按照配置顺序执行。 -->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <!-- prudent：如果是 true，日志会被安全的写入文件，即使其他的FileAppender也在向此文件做写入操作，效率低，默认是 false。 -->
+        <prudent>true</prudent>
+        <!-- 最常用的滚动策略，它根据时间来制定滚动策略.既负责滚动也负责触发滚动 -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!--日志输出位置  可相对、和绝对路径，使用zip，会自动对前一个日志进行压缩 -->
+            <fileNamePattern>${log_dir}/error-%d{yyyy-MM-dd}.log.zip</fileNamePattern>
+            <!-- 可选节点，控制保留的归档文件的最大数量，超出数量就删除旧文件假设设置每个月滚动，且<maxHistory>是6，
+            则只保存最近6个月的文件，删除之前的旧文件。注意，删除旧文件是，那些为了归档而创建的目录也会被删除-->
+            <maxHistory>${maxHistory}</maxHistory>
+            <!-- 最大64MB 超过最大值，会重新建一个文件-->
+            <maxFileSize>64 MB</maxFileSize>
+        </rollingPolicy>
+        <encoder>
+            <!-- 文件输出的日志 的格式 -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger - %msg%n</pattern>
+            <charset>GBK</charset> <!-- 此处设置字符集 -->
+        </encoder>
+    </appender>
+
+    <!-- 可以指定包或者类 -->
+    <!-- additivity=false 表示匹配之后，不再继续传递给其他的logger-->
+    <logger name="com.tom" level="debug" additivity="false">
+        <appender-ref ref="errorAppender"></appender-ref>
+    </logger>
+
+    <!--
+        root：
+        也是<logger>元素，但是它是根loger。只有一个level属性，应为已经被命名为"root".
+        level:用来设置打印级别，大小写无关：TRACE, DEBUG, INFO, WARN, ERROR, ALL 和 OFF，不能设置为INHERITED或者同义词NULL。默认是DEBUG。
+    -->
+    <root level="error">
+        <appender-ref ref="Console"/>
+        <appender-ref ref="errorAppender" />
+    </root>
+</configuration>
+
